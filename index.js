@@ -40,8 +40,11 @@ function initializeApp(graphData) {
             .attr("cy", d => d.y);
     });
 
-    // Build the legend
-    buildLegend(nodetypes, colorScale);
+    // Build the selection view on left panel
+    buildSelectionPanel(nodetypes, colorScale);
+
+    // Build the functionality tools on bottom panel
+    buildFunctionPanel();
 
     // Set up the selection box (lasso selection)
     setupSelectionBox(graphData, svg, g);
@@ -53,11 +56,11 @@ function initializeApp(graphData) {
     }
 
     function updateUI() {
-        updateLegend();
+        updateSelectionPanel();
         updateGraph();
     }
 
-    function updateLegend() {
+    function updateSelectionPanel() {
         // Convert Set to an array for sorting
         const selectedArray = Array.from(selectedNodes);
         // Sort A-Z
@@ -69,8 +72,8 @@ function initializeApp(graphData) {
         // Remove old selected nodes lists
         d3.selectAll(".selected-nodes").remove();
 
-        // Append selected nodes under the correct grouping, outside of the legend item
-        d3.selectAll(".legend-item").each(function (grouping) {
+        // Append selected nodes under the correct grouping
+        d3.selectAll(".selected-item").each(function (grouping) {
             const selectedForType = nodesByType.get(grouping) || [];
             if (selectedForType.length > 0) {
                 d3.select(this).node().insertAdjacentHTML("afterend", `
@@ -90,7 +93,7 @@ function initializeApp(graphData) {
         node.classed("selected", d => selectedNodes.has(d));
 
         // Apply CSS class to links where either node is selected
-        link.classed("selected", d => selectedNodes.has(d.source) || selectedNodes.has(d.target));
+        link.classed("selected", d => selectedNodes.has(d.target));
     }
 
     /**************************************
@@ -126,7 +129,8 @@ function initializeApp(graphData) {
      **************************************/
 
     // Expose these methods if you want them accessible outside:
-    // window.setSelectedNodes = setSelectedNodes;
+    window.setSelectedNodes = setSelectedNodes;
+    window.graphData = graphData;
     // window.updateUI = updateUI;
 }
 
@@ -177,7 +181,9 @@ function setupSimulation(graphData, width, height) {
     return d3.forceSimulation(graphData.nodes)
         .force("link", d3.forceLink(graphData.edges).id(d => d.id))
         .force("charge", d3.forceManyBody().strength(-1000))
-        .force("radial", d3.forceRadial(300, width / 2, height / 2));
+        .force("radial", d3.forceRadial(300, width / 2, height / 2))
+        .force("collision", d3.forceCollide().radius(15));
+
 }
 
 // Build graph (links + nodes)
@@ -201,26 +207,68 @@ function buildGraph(graphData, g, colorScale) {
         .attr("stroke", d => colorScale(d[groupBy]))
         .attr("fill", d => colorScale(d[groupBy]));
 
-    node.append("title").text(d => d.fullName);
+    node.on("click", (event, d) => {
+        // Toggle selection: remove if selected, add if not.
+        if (selectedNodes.has(d)) {
+            selectedNodes.delete(d);
+        } else {
+            selectedNodes.add(d);
+        }
+        window.setSelectedNodes(new Set(selectedNodes)); // Refresh view
+    });
+
+    // Create tooltip div
+    const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("position", "absolute")
+        .style("visibility", "hidden")
+        .style("background", "#fff")
+        .style("top", 0)
+        .style("padding", "5px")
+        .style("border", "1px solid #ccc");
+
+    node.on("mouseover", (event, d) => {
+        tooltip.html(`
+            <table>
+                <tr><td>Type:</td><td>${d.type}</td></tr>
+                <tr><td>Full Name:</td><td>${d.fullName}</td></tr>
+                <tr><td>File Name:</td><td>${d.fileName}</td></tr>
+                <tr><td>Namespace Prefix:</td><td>${d.namespacePrefix}</td></tr>
+                <tr><td>Manageable State:</td><td>${d.manageableState}</td></tr>
+                <tr><td>Last Modified By:</td><td>${d.lastModifiedByName}</td></tr>
+                <tr><td>Last Modified Date:</td><td>${d.lastModifiedDate}</td></tr>
+                <tr><td>Created By:</td><td>${d.createdByName}</td></tr>
+                <tr><td>Created Date:</td><td>${d.createdDate}</td></tr>
+                <tr><td>ID:</td><td>${d.id}</td></tr>
+            </table>
+        `)
+            .style("top", (event.pageY + 10) + "px")
+            .style("left", (event.pageX + 10) + "px")
+            .style("visibility", "visible");
+    }).on("mouseout", () => {
+        tooltip.style("visibility", "hidden");
+    });
+
 
     return { link, node };
 }
 
-// Build legend
-function buildLegend(nodetypes, colorScale) {
-    const legend = d3.select(".panel")
+// Build Selection View
+function buildSelectionPanel(nodetypes, colorScale) {
+    const selectionPanelSelector = ".leftPanel .result"
+    const selections = d3.select(selectionPanelSelector)
         .append("ul")
-        .attr("class", "legend");
+        .attr("class", "selection-list");
 
-    legend.selectAll(".legend-item")
+    selections.selectAll(".selected-item")
         .data(nodetypes)
         .enter()
         .append("li")
-        .attr("class", "legend-item")
+        .attr("class", "selected-item")
         .each(function (grouping) {
-            const legendItem = d3.select(this);
+            const selectedItem = d3.select(this);
 
-            legendItem.append("svg")
+            selectedItem.append("svg")
                 .attr("width", 20)
                 .attr("height", 20)
                 .append("circle")
@@ -229,22 +277,225 @@ function buildLegend(nodetypes, colorScale) {
                 .attr("cy", 10)
                 .attr("fill", colorScale(grouping));
 
-            legendItem.append("span")
-                .attr("class", "legend-label")
+            selectedItem.append("span")
+                .attr("class", "selections-label")
                 .text(grouping);
 
-            legendItem.on("mouseenter", () => {
-                legendItem.classed("state--snowflake", true);
+            selectedItem.on("mouseenter", () => {
+                selectedItem.classed("state--snowflake", true);
             });
 
-            legendItem.on("mouseleave", () => {
-                legendItem.classed("state--snowflake", false);
+            selectedItem.on("mouseleave", () => {
+                selectedItem.classed("state--snowflake", false);
             });
 
             // Add an empty <ul> for selected nodes under each grouping
-            legendItem.append("ul")
+            selectedItem.append("ul")
                 .attr("class", "selected-nodes");
         });
+}
+
+// Build Function View
+function buildFunctionPanel() {
+    // const functionPanelSelector = ".bottomPanel .parameters"
+    // const parameters = d3.select(functionPanelSelector)
+    //     .append()
+
+    populateSearchAttributes();
+
+    document.getElementById('regexSearchBox').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            const searchText = e.target.value.trim();
+            if (!searchText) return;
+
+            try {
+                // Create a case-insensitive regex
+                const regex = new RegExp(searchText, 'i');
+
+                // Get selected attributes from the multi-select
+                const select = document.getElementById('regexSearchFilter');
+                const selectedAttributes = Array.from(select.selectedOptions).map(opt => opt.value);
+
+                // Filter nodes: search only within the selected attributes.
+                const matchedNodes = window.graphData.nodes.filter(node => {
+                    return selectedAttributes.some(key => {
+                        return typeof node[key] === 'string' && regex.test(node[key]);
+                    });
+                });
+
+                // Update the selection view.
+                window.setSelectedNodes(new Set(matchedNodes));
+            } catch (error) {
+                console.error('Error in regex:', error);
+            }
+        }
+    });
+
+    const dropdownMenu = document.querySelector('#regexSearchFilterDropdown .dropdown-menu');
+
+    // Toggle dropdown visibility on button click.
+    document.querySelector('#regexSearchFilterDropdown .dropdown-toggle').addEventListener('click', function (e) {
+        dropdownMenu.classList.toggle('show');
+    });
+
+    dropdownMenu.addEventListener('click', function (e) {
+        if (!e.target.matches('input[type="checkbox"]')) return;
+
+        // If user is holding Ctrl (Windows/Linux) or Cmd (macOS)
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault(); // prevent default toggling
+
+            const allCheckboxes = dropdownMenu.querySelectorAll('input[type="checkbox"]');
+            const total = allCheckboxes.length;
+            const checkedBoxes = Array.from(allCheckboxes).filter(cb => cb.checked);
+            const isAllChecked = (checkedBoxes.length === total);
+            const isNoneChecked = (checkedBoxes.length === 0);
+
+            // Was the clicked checkbox already checked?
+            const wasChecked = e.target.checked;
+
+            if (wasChecked) {
+                // Scenario: user Ctrl+clicked a checkbox that was checked
+                if (isAllChecked) {
+                    // If everything was selected, uncheck just this one
+                    allCheckboxes.forEach(cb => cb.checked = true);
+                    e.target.checked = false;
+                } else {
+                    // Otherwise, uncheck all and check only this one (original behavior)
+                    allCheckboxes.forEach(cb => cb.checked = false);
+                    e.target.checked = true;
+                }
+            } else {
+                // Scenario: user Ctrl+clicked a checkbox that was not checked
+                if (isNoneChecked) {
+                    // If nothing was selected, select all except this one
+                    allCheckboxes.forEach(cb => cb.checked = true);
+                    e.target.checked = false;
+                } else {
+                    // Otherwise, uncheck all and check only this one (original behavior)
+                    allCheckboxes.forEach(cb => cb.checked = false);
+                    e.target.checked = true;
+                }
+            }
+        }
+
+        // Update the dropdown button text (your existing function)
+        updateDropdownButtonText();
+    });
+
+    // Close the dropdown if clicking outside.
+    document.addEventListener('click', function (e) {
+        const dropdown = document.getElementById('regexSearchFilterDropdown');
+        if (!dropdown.contains(e.target)) {
+            document.querySelector('#regexSearchFilterDropdown .dropdown-menu').classList.remove('show');
+        }
+    });
+
+    // Modify the search event to filter based on the selected attributes.
+    document.getElementById('regexSearchBox').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            const searchText = e.target.value.trim();
+            if (!searchText) return;
+
+            try {
+                const regex = new RegExp(searchText, 'i');
+
+                // Get the values of all checked checkboxes.
+                const checkboxes = document.querySelectorAll('#regexSearchFilterDropdown .dropdown-menu input[type="checkbox"]:checked');
+                const selectedAttributes = Array.from(checkboxes).map(cb => cb.value);
+
+                // Filter nodes by checking only the selected attributes.
+                const matchedNodes = window.graphData.nodes.filter(node => {
+                    return selectedAttributes.some(key => {
+                        return typeof node[key] === 'string' && regex.test(node[key]);
+                    });
+                });
+
+                window.setSelectedNodes(new Set(matchedNodes));
+            } catch (error) {
+                console.error('Error in regex:', error);
+            }
+        }
+    });
+
+    // Enable expansion feature
+    document.getElementById('subtractExpansion').addEventListener('mouseup', function (e) {
+        modifySelection(-1)
+    })
+    document.getElementById('addExpansion').addEventListener('mouseup', function (e) {
+        modifySelection(1)
+    })
+}
+
+function modifySelection(amount) {
+    if (selectedNodes.size == 0) return;
+
+    console.log('start');
+    
+    if (amount > 0) {
+        let newSelection = selectedNodes;
+        let newNodeIds = new Set();
+        selectedNodes.forEach(node => {
+            window.graphData.edges
+                .filter(edge => edge.source.id == node.id || edge.target.id == node.id)
+                .forEach(edge => {
+                    newNodeIds.add(edge.target.id)
+                    newNodeIds.add(edge.source.id)
+                });
+        })
+            
+        window.graphData.nodes
+            .filter(node => newNodeIds.has(node.id))
+            .forEach(node => newSelection.add(node));
+
+        window.setSelectedNodes(newSelection);
+    }
+
+    console.log('stop');
+    
+}
+
+// Call this once after your data loads.
+function populateSearchAttributes() {
+    const attributes = {
+        "type": "Type",
+        "fullName": "Full Name",
+        "fileName": "File Name",
+        "namespacePrefix": "Namespace Prefix",
+        "manageableState": "Manageable State",
+        "lastModifiedByName": "Last Modified By",
+        "lastModifiedDate": "Last Modified Date",
+        "createdByName": "Created By",
+        "createdDate": "Created Date",
+        "id": "ID",
+    }
+
+    const menu = document.querySelector('#regexSearchFilterDropdown .dropdown-menu');
+    menu.innerHTML = '';
+
+    for (const [key, value] of Object.entries(attributes)) {
+        const label = document.createElement('label');
+        label.classList.add('dropdown-option');
+        label.innerHTML = `<input type="checkbox" value="${key}" checked> ${value}`;
+        menu.appendChild(label);
+    }
+
+    updateDropdownButtonText(); // show "All" if all checked
+}
+
+// Update the dropdown button text based on selected options.
+function updateDropdownButtonText() {
+    const checkboxes = document.querySelectorAll('#regexSearchFilterDropdown .dropdown-menu input[type="checkbox"]');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    const dropdownButton = document.querySelector('#regexSearchFilterDropdown .dropdown-toggle');
+    if (allChecked) {
+        dropdownButton.textContent = 'All';
+    } else {
+        // List only a few selected items
+        const selected = Array.from(checkboxes)
+            .filter(cb => cb.checked);
+        dropdownButton.textContent = `${selected.length} selected`;
+    }
 }
 
 // Setup selection box (lasso selection)
@@ -306,48 +557,10 @@ function setupSelectionBox(graphData, svg, g) {
             }
         });
 
-        // We can call setSelectedNodes if we keep it accessible
-        // For simplicity, let's call a local function we define here
-        setSelectedNodes(newNodes);
+        window.setSelectedNodes(newNodes);
 
         // Hide the selection box
         selectionBox.style("visibility", "hidden");
         startX = undefined;
     });
-
-    // Because setSelectedNodes is defined inside `initializeApp`,
-    // we define a local wrapper function here:
-    function setSelectedNodes(newSelection) {
-        selectedNodes = newSelection;
-        updateUI();
-    }
-
-    function updateUI() {
-        updateLegend();
-        updateGraph();
-    }
-
-    function updateLegend() {
-        const selectedArray = Array.from(selectedNodes).sort((a, b) => a.fullName.localeCompare(b.fullName));
-        const nodesByType = d3.group(selectedArray, d => d[groupBy]);
-
-        d3.selectAll(".selected-nodes").remove();
-
-        d3.selectAll(".legend-item").each(function (grouping) {
-            const selectedForType = nodesByType.get(grouping) || [];
-            if (selectedForType.length > 0) {
-                d3.select(this).node().insertAdjacentHTML("afterend", `
-                    <ul class="selected-nodes">
-                        ${selectedForType.map(node => `<li>${node.fullName}</li>`).join('')}
-                    </ul>
-                `);
-            }
-        });
-    }
-
-    function updateGraph() {
-        d3.select("svg.graph").classed("hasSelections", selectedNodes.size > 0);
-        d3.selectAll(".node").classed("selected", d => selectedNodes.has(d));
-        d3.selectAll(".link").classed("selected", d => selectedNodes.has(d.source) || selectedNodes.has(d.target));
-    }
 }

@@ -12,13 +12,39 @@
     <script src="index.js"></script>
     <link rel="stylesheet" href="base.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="dropdown.css">
 </head>
 
-<body class="light-mode">
+<body class="dark-mode">
     <div class="panelContainer">
-        <div class="panel">
-            <div class="view-parameters"></div>
-            <div class="view-selections"></div>
+        <div class="leftPanel">
+            <div class="panel">
+                <div class="parameters"></div>
+                <div class="selections">
+                    <div class="title">Selections</div>
+                    <div class="result"></div>
+                </div>
+            </div>
+        </div>
+        <div class="bottomPanel">
+            <div class="panel">
+                <div class="parameters">
+                    <!-- Search... within... -->
+                    <label for="regexSearch">Search:</label>
+                    <input id="regexSearchBox" name="regexSearch" type="text"></input>
+                    <label for="regexSearchFilter">Within:</label>
+                    <div id="regexSearchFilterDropdown" class="dropdown">
+                        <button type="button" class="dropdown-toggle">All</button>
+                        <div class="dropdown-menu"></div>
+                    </div>
+
+                    <!-- Expand selection controls -->
+                    <label for="expandSelections">Expand selections:</label>
+                    <button id="subtractExpansion" class="expansionbtn">-</button>
+                    <span>/</span>
+                    <button id="addExpansion" class="expansionbtn">+</button>
+                </div>
+            </div>
         </div>
     </div>
     <div class="container">

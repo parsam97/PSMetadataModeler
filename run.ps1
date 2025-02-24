@@ -13,7 +13,7 @@ Get-ChildItem $MD_DIR | ForEach-Object {
     $separator = " OR "
     $xml.Envelope.Body.listMetadataResponse.result | ForEach-Object {
         $id = $_.id
-        $condition = "MetadataComponentId='$id'"
+        $condition = "MetadataComponentId='$id' OR RefMetadataComponentId='$id'"
 
         if (($baseQuery.Length + $($whereClauses -join "$separator").Length) -le $MAX_QUERY_LENGTH) {
             $whereClauses += "$condition"
@@ -73,8 +73,8 @@ Get-ChildItem $MD_DIR | ForEach-Object {
             lastModifiedById = $MD_RESULT.lastModifiedById
             lastModifiedByName = $MD_RESULT.lastModifiedByName
             lastModifiedDate = $MD_RESULT.lastModifiedDate
-            manageableState = $MD_RESULT.manageableState
-            namespacePrefix = $MD_RESULT.namespacePrefix
+            manageableState = ($MD_RESULT.manageableState -ne $null) ? $MD_RESULT.manageableState : ""
+            namespacePrefix = ($MD_RESULT.namespacePrefix -ne $null) ? $MD_RESULT.namespacePrefix : ""
             type = $MD_RESULT.type
         }
 
@@ -120,7 +120,7 @@ foreach ($edge in $GRAPH.edges) {
 # Filter nodes and edges
 $GRAPH.nodes = $GRAPH.nodes | Where-Object { $nodeReferences[$_.id] -ge $LT_CONST }
 $GRAPH.edges = $GRAPH.edges | Where-Object { 
-    $nodeReferences[$_.source] -ge $LT_CONST -and $nodeReferences[$_.target] -ge $LT_CONST 
+    $nodeReferences[$_.source] -ge $LT_CONST -or $nodeReferences[$_.target] -ge $LT_CONST 
 }
 
 $FINAL_GRAPH_JSON_PATH = Join-Path 'data' 'tgraph.json'
