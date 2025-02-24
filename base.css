@@ -1,0 +1,17 @@
+:root {
+    --sv-c-white: 255,255,255;
+    --sv-c-black: 0,0,0;
+
+    --sv-c-inspectorblue: 23,151,192;
+    --sv-c-darkblue: 20,49,59;
+}
+.light-mode {
+    --color-background: var(--sv-c-white);
+    --color-text: var(--sv-c-black);
+    --color-userinfo: var(--sv-c-inspectorblue);
+}
+.dark-mode {
+    --color-background: var(--sv-c-black);
+    --color-text: var(--sv-c-white);
+    --color-userinfo: var(--sv-c-darkblue);
+}
