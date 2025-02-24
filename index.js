@@ -1,5 +1,5 @@
 let selectedNodes = new Set();
-let groupBy = "createdByName"
+let groupBy = "type"
 
 d3.json("data/tgraph.json").then(graphData => {
     // Count nodes in each group
@@ -48,7 +48,7 @@ d3.json("data/tgraph.json").then(graphData => {
         .join("circle")
         .attr("r", 10)
         .attr("class", "node")
-        .attr("stroke-width", "0px")
+        .attr("stroke-width", 0)
         .attr("stroke", d => colorScale(d[groupBy]))
         .attr("fill", d => colorScale(d[groupBy]));
 

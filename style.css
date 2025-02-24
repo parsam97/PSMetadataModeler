@@ -31,7 +31,6 @@ svg.hasSelections .node:not(.selected) {
 
 /* EDGES */
 svg.hasSelections .link.selected {
-    stroke: red;
     stroke-width: 2px;
 }
 
