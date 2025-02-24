@@ -15,19 +15,19 @@ d3.json("data/tgraph.json").then(graphData => {
  * Main Initialization Function
  **************************************/
 function initializeApp(graphData) {
-    // 1) Compute group counts & color scale
+    // Compute group counts & color scale
     const { nodetypes, colorScale } = setupColorScale(graphData);
 
-    // 2) Create SVG, <g>, and set up zoom/pan
+    // Create SVG, <g>, and set up zoom/pan
     const { width, height, svg, g } = setupSVG();
 
-    // 3) Create force simulation
+    // Create force simulation
     const simulation = setupSimulation(graphData, width, height);
 
-    // 4) Build the graph (links & nodes)
+    // Build the graph (links & nodes)
     const { link, node } = buildGraph(graphData, g, colorScale);
 
-    // 5) Set up the simulation tick
+    // Set up the simulation tick
     simulation.on("tick", () => {
         link
             .attr("x1", d => d.source.x)
@@ -40,13 +40,13 @@ function initializeApp(graphData) {
             .attr("cy", d => d.y);
     });
 
-    // 6) Build the legend
+    // Build the legend
     buildLegend(nodetypes, colorScale);
 
-    // 7) Set up the selection box (lasso selection)
+    // Set up the selection box (lasso selection)
     setupSelectionBox(graphData, svg, g);
 
-    // 8) Define local functions for selection & UI updates
+    // Define local functions for selection & UI updates
     function setSelectedNodes(newSelection) {
         selectedNodes = newSelection;
         updateUI();
